@@ -66,7 +66,7 @@ num_pooled = (max_document_length-region_size+1)/2
 print( "Pool Size: ", num_pooled)
 
 batch_size = 25
-num_epochs = 500
+num_epochs = 100
 
 evaluate_every = 500
 
@@ -117,7 +117,7 @@ with tf.Session() as sess:
             [optimizer, global_step, cnn.loss, cnn.accuracy],
             feed_dict)
         time_str = datetime.datetime.now().isoformat()
-        print(("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy)))
+        #print(("{}: step {}, loss {:g}, acc {:g}".format(time_str, step, loss, accuracy)))
         #train_summary_writer.add_summary(summaries, step)
 
     def dev_step(x_batch, y_batch, writer=None):
