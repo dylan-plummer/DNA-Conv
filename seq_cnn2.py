@@ -91,10 +91,11 @@ class seqCNN(object):
         normalized = tf.nn.local_response_normalization(drop)                
         
         #feature extraction and flatting for future 
-        self.pool_flat = tf.reshape(normalized, [-1, num_pooled*num_filters[1]])                
+        print(normalized, [-1, (int)(num_pooled*num_filters[1])])
+        self.pool_flat = tf.reshape(normalized, [-1, (int)(num_pooled*num_filters[1])])                
                         
         #affine layer
-        affine_filter_shape = [num_pooled*num_filters[1], num_classes]
+        affine_filter_shape = [(int)(num_pooled*num_filters[1]), num_classes]
         W_AF = tf.Variable(
                         tf.truncated_normal(affine_filter_shape, stddev=0.1),
                         name="W_AF"
@@ -107,9 +108,10 @@ class seqCNN(object):
         self.predictions = tf.argmax(scores, 1, name="predictions")
         
         #losses
-        losses = tf.nn.softmax_cross_entropy_with_logits(scores, self.y_input)
+        losses = tf.nn.softmax_cross_entropy_with_logits(labels=self.y_input, logits=scores)
         self.loss = tf.reduce_mean(losses) + l2_reg_lambda * ( tf.nn.l2_loss(W_CN) + tf.nn.l2_loss(b_CN) + tf.nn.l2_loss(W_AF) + tf.nn.l2_loss(b_AF) )
         
         #predictions
         correct_predictions = tf.equal(self.predictions, tf.argmax(self.y_input, 1))
+        #self.accuracy = tf.metrics.accuracy(labels=self.y_input, predictions=scores, name="accuracy")
         self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
