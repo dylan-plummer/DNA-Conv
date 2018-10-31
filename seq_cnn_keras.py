@@ -5,7 +5,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedShuffleSplit
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten, Dropout, Conv1D, AveragePooling1D
+from keras.layers import Dense, Activation, Flatten, Dropout, Conv1D, AveragePooling1D, MaxPooling1D
 from keras.optimizers import SGD, Adam
 from keras.utils import np_utils
 import matplotlib.pyplot as plt
@@ -16,12 +16,12 @@ import data_helpers as dhrt
 learning_rate = 0.01
 num_classes = 2
 num_features = 372
-batch_size = 32
+batch_size = 64
 nb_epoch = 8
 
 # load data
-x_rt, y_rt = dhrt.load_data_and_labels('h3.pos','h3.neg')
-lens = [len(x.split(" ")) for x in x_rt];
+x_rt, y_rt = dhrt.load_data_and_labels('h3k4me3.pos', 'h3k4me3.neg')
+lens = [len(x.split(" ")) for x in x_rt]
 max_document_length = max(lens)
 
 if max_document_length%2 != 0:
@@ -36,7 +36,7 @@ vocab_size = len(vocab_processor.vocabulary_)
 
 print( "Vocab Size: ", vocab_size)
 num_classes = 2
-num_filters = [8, 16]
+num_filters = [16, 4]
 
 region_size = 51 #can be considered as filter size but not really
 
@@ -73,37 +73,32 @@ for train_index, valid_index in sss.split(scaled_train, y_rt_shuffled):
 
 # reshape train data
 print('X_train',X_train.shape)
-X_train_r = np.zeros((X_train.shape[0], X_train.shape[1], batch_size))
-for i in range(batch_size):
-    X_train_r[:, :, i] = X_train
+X_train_r = np.expand_dims(X_train, axis=2)
+X_valid_r = np.expand_dims(X_valid, axis=2)
+X_train_r = np.tile(X_train_r, (1, 1, batch_size))
 print(X_train_r.shape)
-X_valid_r = np.zeros((X_valid.shape[0], X_valid.shape[1], batch_size))
-for i in range(batch_size):
-    X_valid_r[:, :, i] = X_valid
-
-#y_train = np_utils.to_categorical(y_train, num_classes)
-#y_valid = np_utils.to_categorical(y_train, num_classes)
+X_train_r = np.reshape(X_train_r, (X_train_r.shape[0], batch_size, X_train_r.shape[1]))
+X_valid_r = np.tile(X_valid_r, (1, 1, batch_size))
+X_valid_r = np.reshape(X_valid_r, (X_valid_r.shape[0], batch_size, X_valid_r.shape[1]))
 
 
 filter_length = vocab_size*region_size
 sentence_length = x_rt_proc.shape[1]*vocab_size
 cnn_filter_shape = [filter_length, 1, 1, num_filters[0]]
 pool_stride = [1,int((x_rt_proc.shape[1]-region_size+1)/num_pooled),1,1]
-# Keras model with one Convolution1D layer
-# unfortunately more number of covnolutional layers, filters and filters lenght
-# don't give better accuracy
-print('SHAPE?', X_train_r.shape[1:])
+print('SHAPE?', X_train_r.shape)
 model = Sequential()
 # Shape is (batch_size, sentence_length)
-model.add(Conv1D(nb_filter=num_filters[0], filter_length=filter_length, input_shape=X_train_r.shape[1:]))
+model.add(Conv1D(nb_filter=num_filters[0], filter_length=3, input_shape=(batch_size, X_train_r.shape[2])))
 model.add(Activation('relu'))
 model.add(Conv1D(nb_filter=num_filters[1], filter_length=3))
 model.add(Activation('relu'))
-model.add(AveragePooling1D(pool_size=int(num_pooled), padding='VALID'))
+model.add(MaxPooling1D(pool_size=int(num_pooled), padding='same'))
 model.add(Activation('relu'))
 model.add(Flatten())
 model.add(Dense(2048, activation='relu'))
 model.add(Dense(1024, activation='relu'))
+model.add(Dense(512, activation='relu'))
 model.add(Dropout(0.3))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
@@ -111,7 +106,7 @@ print(model.summary())
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 
 history = model.fit(X_train_r, y_train, nb_epoch=nb_epoch, validation_data=(X_valid_r, y_valid), batch_size=batch_size)
 print(history.history.keys())
