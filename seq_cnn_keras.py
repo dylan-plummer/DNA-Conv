@@ -13,11 +13,11 @@ import data_helpers as dhrt
 
 
 # Network Parameters
-learning_rate = 0.001
+learning_rate = 0.01
 num_classes = 2
 num_features = 372
 batch_size = 32
-nb_epoch = 16
+nb_epoch = 8
 
 # load data
 x_rt, y_rt = dhrt.load_data_and_labels('h3.pos','h3.neg')
@@ -36,7 +36,7 @@ vocab_size = len(vocab_processor.vocabulary_)
 
 print( "Vocab Size: ", vocab_size)
 num_classes = 2
-num_filters = [16, 4]
+num_filters = [8, 16]
 
 region_size = 51 #can be considered as filter size but not really
 
@@ -66,7 +66,7 @@ scaler = StandardScaler().fit(x_rt_shuffled)
 scaled_train = scaler.transform(x_rt_shuffled)
 
 # split train data into train and validation
-sss = StratifiedShuffleSplit(test_size=0.2, random_state=23)
+sss = StratifiedShuffleSplit(test_size=0.1, random_state=23)
 for train_index, valid_index in sss.split(scaled_train, y_rt_shuffled):
     X_train, X_valid = scaled_train[train_index], scaled_train[valid_index]
     y_train, y_valid = y_rt_shuffled[train_index], y_rt_shuffled[valid_index]
@@ -101,10 +101,10 @@ model.add(Conv1D(nb_filter=num_filters[1], filter_length=3))
 model.add(Activation('relu'))
 model.add(AveragePooling1D(pool_size=int(num_pooled), padding='VALID'))
 model.add(Activation('relu'))
-model.add(Dropout(0.3))
+model.add(Flatten())
 model.add(Dense(2048, activation='relu'))
 model.add(Dense(1024, activation='relu'))
-model.add(Flatten())
+model.add(Dropout(0.3))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 print(model.summary())
