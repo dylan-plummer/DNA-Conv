@@ -14,15 +14,16 @@ import data_helpers as dhrt
 
 
 # Network Parameters
-learning_rate = 0.01
+learning_rate = 0.001
 num_classes = 2
 num_features = 372
-batch_size = 32
-hidden_size = 500
+num_steps = 500
+batch_size = 16
+hidden_size = 100
 nb_epoch = 8
 
 # load data
-x_rt, y_rt = dhrt.load_data_and_labels('h3.pos', 'h3.neg')
+x_rt, y_rt = dhrt.load_data_and_labels('h3k4me3.pos', 'h3k4me3.neg')
 lens = [len(x.split(" ")) for x in x_rt]
 max_document_length = max(lens)
 
@@ -84,20 +85,20 @@ X_valid_r = np.tile(X_valid_r, (1, 1, batch_size))
 X_valid_r = np.reshape(X_valid_r, (X_valid_r.shape[0], batch_size, X_valid_r.shape[1]))
 
 
-def generate(x_train, y_train, vocab, skip_step=5):
-    x = x_train[0]
-    y = np_utils.to_categorical(y_train[0], num_classes=2)
-    id = x_train.shape[1]
+def generate(x_train, y_train, vocab, skip_step=1):
+    x = x_train[0:num_steps]
+    y = y_train[0:num_steps]
+    id = num_steps
     while True:
         for i in range(batch_size):
-            print(i, id)
-            if id + x_train.shape[1] >= x_train.shape[0]:
+            #print(i, id)
+            if id + num_steps >= x_train.shape[0]:
                 # reset the index back to the start of the data set
                 id = 0
-            x = np.vstack((x, x_train[id:id + x_train.shape[1]]))
-            y = np.vstack((y, np_utils.to_categorical(y_train[id: id + x_train.shape[1]], num_classes=2)))
+            x = np.vstack((x, x_train[id:id + num_steps]))
+            y = np.vstack((y, y_train[id:id + num_steps]))
             id += skip_step
-        print('Training data shape:', x.shape)
+        #print('Training data shape:', x.shape)
         yield x, y
 
 
@@ -108,12 +109,19 @@ pool_stride = [1,int((x_rt_proc.shape[1]-region_size+1)/num_pooled),1,1]
 print('SHAPE?', X_train_r.shape)
 model = Sequential()
 # Shape is (batch_size, sentence_length)
-model.add(Embedding(vocab_size, hidden_size, input_length=X_train_r.shape[2]))
-model.add(LSTM(hidden_size, return_sequences=True))
-model.add(LSTM(hidden_size, return_sequences=True))
+model.add(Embedding(num_classes, hidden_size, input_length=X_train_r.shape[2]))
 model.add(Dropout(0.5))
+model.add(Conv1D(nb_filter=num_filters[1],
+                 filter_length=3,
+                 padding='valid',
+                 activation='relu',
+                 strides=1))
+model.add(MaxPooling1D(pool_size=int(num_pooled)))
+model.add(LSTM(hidden_size, return_sequences=True))
+#model.add(LSTM(hidden_size, return_sequences=True))
+#model.add(Dropout(0.5))
 #model.add(Flatten())
-model.add(TimeDistributed(Dense(vocab_size)))
+#model.add(TimeDistributed(Dense(num_classes)))
 model.add(Flatten())
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
@@ -123,16 +131,18 @@ checkpointer = ModelCheckpoint('/model-{epoch:02d}.hdf5', verbose=1)
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['categorical_accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['accuracy'])
 print('Steps/Epoch:', X_train.shape[0]//(batch_size))
+'''
 history = model.fit_generator(generator=generate(X_train, y_train, vocab_size),
-                              steps_per_epoch=X_train.shape[0]//(batch_size),
+                              steps_per_epoch=X_train.shape[0]//(num_steps * batch_size),
                               epochs=nb_epoch,
                               validation_data=(X_valid, y_valid),
                               #validation_steps=X_valid.shape[0]//(batch_size*X_valid.shape[1]),
                               callbacks=[checkpointer])
+                              '''
 
-#history = model.fit(X_train_r, y_train, nb_epoch=nb_epoch, validation_data=(X_valid_r, y_valid), batch_size=batch_size)
+history = model.fit(X_train, y_train, nb_epoch=nb_epoch, validation_data=(X_valid, y_valid), batch_size=batch_size)
 
 print(history.history.keys())
 # summarize history for accuracy
