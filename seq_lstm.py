@@ -1,29 +1,32 @@
 import numpy as np
 import pandas as pd
 from tensorflow.contrib import learn
+import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedShuffleSplit
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten, Dropout, Conv1D, AveragePooling1D, MaxPooling1D, Embedding, LSTM, TimeDistributed
+from keras.layers import Dense, Activation, Flatten, Dropout, Conv1D, AveragePooling1D, MaxPooling1D, Embedding, LSTM, TimeDistributed, Bidirectional
 from keras.optimizers import SGD, Adam
 from keras.callbacks import ModelCheckpoint
+from keras.preprocessing import sequence
 from keras.utils import np_utils
 import matplotlib.pyplot as plt
 import data_helpers as dhrt
 
 
 # Network Parameters
-learning_rate = 0.001
+learning_rate = 0.01
 num_classes = 2
 num_features = 372
 num_steps = 500
-batch_size = 16
+batch_size = 32
 hidden_size = 100
-nb_epoch = 8
+nb_epoch = 4
+lstm_timesteps = 5
 
 # load data
-x_rt, y_rt = dhrt.load_data_and_labels('h3k4me3.pos', 'h3k4me3.neg')
+x_rt, y_rt = dhrt.load_data_and_labels('h3.pos', 'h3.neg')
 lens = [len(x.split(" ")) for x in x_rt]
 max_document_length = max(lens)
 
@@ -69,69 +72,41 @@ scaler = StandardScaler().fit(x_rt_shuffled)
 scaled_train = scaler.transform(x_rt_shuffled)
 
 # split train data into train and validation
-sss = StratifiedShuffleSplit(test_size=0.1, random_state=23)
+sss = StratifiedShuffleSplit(test_size=0.4, random_state=23)
 for train_index, valid_index in sss.split(scaled_train, y_rt_shuffled):
     X_train, X_valid = scaled_train[train_index], scaled_train[valid_index]
     y_train, y_valid = y_rt_shuffled[train_index], y_rt_shuffled[valid_index]
 
 # reshape train data
-print('X_train',X_train.shape)
-X_train_r = np.expand_dims(X_train, axis=2)
-X_valid_r = np.expand_dims(X_valid, axis=2)
-X_train_r = np.tile(X_train_r, (1, 1, batch_size))
-print(X_train_r.shape)
-X_train_r = np.reshape(X_train_r, (X_train_r.shape[0], batch_size, X_train_r.shape[1]))
-X_valid_r = np.tile(X_valid_r, (1, 1, batch_size))
-X_valid_r = np.reshape(X_valid_r, (X_valid_r.shape[0], batch_size, X_valid_r.shape[1]))
-
-
-def generate(x_train, y_train, vocab, skip_step=1):
-    x = x_train[0:num_steps]
-    y = y_train[0:num_steps]
-    id = num_steps
-    while True:
-        for i in range(batch_size):
-            #print(i, id)
-            if id + num_steps >= x_train.shape[0]:
-                # reset the index back to the start of the data set
-                id = 0
-            x = np.vstack((x, x_train[id:id + num_steps]))
-            y = np.vstack((y, y_train[id:id + num_steps]))
-            id += skip_step
-        #print('Training data shape:', x.shape)
-        yield x, y
+X_train_r = sequence.pad_sequences(X_train, maxlen=X_train.shape[1])
+X_valid_r = sequence.pad_sequences(X_valid, maxlen=X_valid.shape[1])
 
 
 filter_length = vocab_size*region_size
+print('Filter length:', filter_length)
 sentence_length = x_rt_proc.shape[1]*vocab_size
 cnn_filter_shape = [filter_length, 1, 1, num_filters[0]]
 pool_stride = [1,int((x_rt_proc.shape[1]-region_size+1)/num_pooled),1,1]
 print('SHAPE?', X_train_r.shape)
+embedding_vector_length = 32
 model = Sequential()
-# Shape is (batch_size, sentence_length)
-model.add(Embedding(num_classes, hidden_size, input_length=X_train_r.shape[2]))
-model.add(Dropout(0.5))
-model.add(Conv1D(nb_filter=num_filters[1],
-                 filter_length=3,
-                 padding='valid',
-                 activation='relu',
-                 strides=1))
-model.add(MaxPooling1D(pool_size=int(num_pooled)))
-model.add(LSTM(hidden_size, return_sequences=True))
-#model.add(LSTM(hidden_size, return_sequences=True))
-#model.add(Dropout(0.5))
-#model.add(Flatten())
-#model.add(TimeDistributed(Dense(num_classes)))
-model.add(Flatten())
-model.add(Dense(num_classes))
-model.add(Activation('softmax'))
+model.add(Embedding(num_classes, filter_length, input_length=X_train.shape[1]))
+model.add(Dropout(0.3))
+model.add(Conv1D(nb_filter=num_filters[0], filter_length=3))
+model.add(Activation('relu'))
+model.add(Bidirectional(LSTM(hidden_size)))
+model.add(Dropout(0.3))
+model.add(Dense(2048, activation='relu'))
+model.add(Dense(1024, activation='relu'))
+model.add(Dense(2, activation='sigmoid'))
+#model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 print(model.summary())
 
 checkpointer = ModelCheckpoint('/model-{epoch:02d}.hdf5', verbose=1)
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=['accuracy'])
 print('Steps/Epoch:', X_train.shape[0]//(batch_size))
 '''
 history = model.fit_generator(generator=generate(X_train, y_train, vocab_size),
@@ -142,7 +117,7 @@ history = model.fit_generator(generator=generate(X_train, y_train, vocab_size),
                               callbacks=[checkpointer])
                               '''
 
-history = model.fit(X_train, y_train, nb_epoch=nb_epoch, validation_data=(X_valid, y_valid), batch_size=batch_size)
+history = model.fit(X_train_r, y_train, epochs=nb_epoch, validation_data=(X_valid_r, y_valid), batch_size=batch_size)
 
 print(history.history.keys())
 # summarize history for accuracy

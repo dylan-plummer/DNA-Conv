@@ -16,8 +16,8 @@ import data_helpers as dhrt
 learning_rate = 0.001
 num_classes = 2
 num_features = 372
-batch_size = 32
-nb_epoch = 16
+batch_size = 64
+nb_epoch = 64
 
 # load data
 x_rt, y_rt = dhrt.load_data_and_labels('h3k4me3.pos', 'h3k4me3.neg')
@@ -66,7 +66,7 @@ scaler = StandardScaler().fit(x_rt_shuffled)
 scaled_train = scaler.transform(x_rt_shuffled)
 
 # split train data into train and validation
-sss = StratifiedShuffleSplit(test_size=0.1, random_state=23)
+sss = StratifiedShuffleSplit(test_size=0.2, random_state=23)
 for train_index, valid_index in sss.split(scaled_train, y_rt_shuffled):
     X_train, X_valid = scaled_train[train_index], scaled_train[valid_index]
     y_train, y_valid = y_rt_shuffled[train_index], y_rt_shuffled[valid_index]
@@ -85,21 +85,25 @@ X_valid_r = np.reshape(X_valid_r, (X_valid_r.shape[0], batch_size, X_valid_r.sha
 filter_length = vocab_size*region_size
 sentence_length = x_rt_proc.shape[1]*vocab_size
 cnn_filter_shape = [filter_length, 1, 1, num_filters[0]]
-pool_stride = [1,int((x_rt_proc.shape[1]-region_size+1)/num_pooled),1,1]
+pool_stride = [1,int((x_rt_proc.shape[1]-region_size+1)/num_pooled), 1, 1]
 print('SHAPE?', X_train_r.shape)
 model = Sequential()
 # Shape is (batch_size, sentence_length)
-model.add(Conv1D(nb_filter=num_filters[0], filter_length=3, input_shape=(batch_size, X_train_r.shape[2])))
+model.add(Conv1D(nb_filter=num_filters[0], filter_length=batch_size//8, input_shape=(batch_size, X_train_r.shape[2])))
 model.add(Activation('relu'))
+model.add(MaxPooling1D(pool_size=num_features//batch_size, padding='valid'))
+model.add(Activation('relu'))
+model.add(Dropout(0.3))
 model.add(Conv1D(nb_filter=num_filters[1], filter_length=3))
 model.add(Activation('relu'))
-model.add(AveragePooling1D(pool_size=int(num_pooled), padding='same'))
+model.add(MaxPooling1D(pool_size=int(num_pooled), padding='same'))
 model.add(Activation('relu'))
-model.add(Flatten())
+model.add(Dropout(0.3))
+#model.add(Flatten())
 model.add(Dense(2048, activation='relu'))
 model.add(Dense(1024, activation='relu'))
-model.add(Dense(512, activation='relu'))
-model.add(Dropout(0.4 ))
+#model.add(Dense(512, activation='relu'))
+model.add(Flatten())
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 print(model.summary())
