@@ -17,7 +17,7 @@ learning_rate = 0.001
 num_classes = 2
 num_features = 372
 batch_size = 128
-nb_epoch = 18
+nb_epoch = 100
 hidden_size = 100
 
 # load data
@@ -88,6 +88,7 @@ sentence_length = x_rt_proc.shape[1]*vocab_size
 cnn_filter_shape = [filter_length, 1, 1, num_filters[0]]
 pool_stride = [1,int((x_rt_proc.shape[1]-region_size+1)/num_pooled), 1, 1]
 print('SHAPE?', X_train_r.shape)
+print('Final Dense shape:', (int)(num_pooled*num_filters[1]))
 model = Sequential()
 # Shape is (batch_size, sentence_length)
 model.add(Conv1D(nb_filter=num_filters[0], filter_length=batch_size//8, input_shape=(batch_size, X_train_r.shape[2])))
@@ -102,10 +103,10 @@ model.add(Activation('relu'))
 model.add(Bidirectional(LSTM(hidden_size)))
 model.add(Dropout(0.3))
 model.add(BatchNormalization())
+#model.add(Dense(2048, activation='relu'))
+#model.add(Dense(1024, activation='relu'))
+model.add(Dense((int)(num_pooled*num_filters[1]), activation='relu'))
 #model.add(Flatten())
-model.add(Dense(2048, activation='relu'))
-model.add(Dense(1024, activation='relu'))
-model.add(Dense(512, activation='relu'))
 #model.add(Flatten())
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
