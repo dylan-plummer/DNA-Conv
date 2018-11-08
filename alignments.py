@@ -135,9 +135,26 @@ sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
 model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 print('Training shapes:', x_train.shape, y_train.shape)
 print('Valid shapes:', x_valid.shape, y_valid.shape)
-model.fit_generator(generate_batch(x_train, y_train),
-                    steps_per_epoch=50,
-                    epochs=nb_epoch,
-                    validation_data=generate_batch(x_valid, y_valid),
-                    validation_steps=50,
-                    verbose=1)
+history = model.fit_generator(generate_batch(x_train, y_train),
+                              steps_per_epoch=50,
+                              epochs=nb_epoch,
+                              validation_data=generate_batch(x_valid, y_valid),
+                              validation_steps=50,
+                              verbose=1)
+print(history.history.keys())
+# summarize history for accuracy
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.title('model accuracy')
+plt.ylabel('accuracy')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
+# summarize history for loss
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
