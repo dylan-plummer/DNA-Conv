@@ -21,7 +21,7 @@ nb_epoch = 100
 hidden_size = 100
 
 # load data
-x_rt, y_rt = dhrt.load_data_and_labels('h3.pos', 'h3.neg')
+x_rt, y_rt = dhrt.load_data_and_labels('h3k4me3.pos', 'h3k4me3.neg')
 lens = [len(x.split(" ")) for x in x_rt]
 max_document_length = max(lens)
 
