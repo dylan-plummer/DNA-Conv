@@ -2,6 +2,8 @@ import data_helpers as dhrt
 from tensorflow.contrib import learn
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+
+
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
@@ -61,16 +63,12 @@ def convert_base_pairs(x):
     vocab_processor = learn.preprocessing.VocabularyProcessor(max_document_length)
     x_proc = []
     for alignment in x:
-        print('Alignment shape:', alignment.shape)
-        proc = np.array(list(vocab_processor.transform(' '.join(alignment))))
+        #print('Alignment shape:', alignment.shape)
+        proc = np.array(list(vocab_processor.transform(' '.join(alignment)[:-1])))
         scaler = StandardScaler().fit(np.float64(proc))
         proc = scaler.transform(np.float64(proc))
-        if len(x_proc) == 0:
-            print(len(proc))
-            x_proc = proc
-        else:
-            print('Resulting shape:', x_proc.shape, proc.shape)
-            x_proc = np.append(x_proc, proc, axis=1)
+        x_proc = np.append(x_proc, proc)
+        #print('Resulting shape:', x_proc.shape, proc.shape)
     return np.reshape(x_proc, (max_document_length, 2, x.shape[0]))
 
 
