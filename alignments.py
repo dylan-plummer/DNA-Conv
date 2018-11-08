@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Flatten, Dropout, Conv1D, AveragePooling1D, MaxPooling1D, LSTM, Bidirectional, BatchNormalization
 from keras.optimizers import SGD, Adam
+import matplotlib.pyplot as plt
 from Bio import pairwise2
 
 
@@ -56,17 +57,21 @@ def convert_base_pairs(x):
     max_document_length = max(lens)
     if max_document_length % 2 != 0:
         max_document_length = max_document_length + 1
+    print('Max seq length:', max_document_length)
     vocab_processor = learn.preprocessing.VocabularyProcessor(max_document_length)
     x_proc = []
     for alignment in x:
-        proc = np.array(list(vocab_processor.fit_transform(alignment)))
+        print('Alignment shape:', alignment.shape)
+        proc = np.array(list(vocab_processor.transform(' '.join(alignment))))
         scaler = StandardScaler().fit(np.float64(proc))
         proc = scaler.transform(np.float64(proc))
         if len(x_proc) == 0:
+            print(len(proc))
             x_proc = proc
         else:
+            print('Resulting shape:', x_proc.shape, proc.shape)
             x_proc = np.append(x_proc, proc, axis=1)
-    return np.reshape(x_proc, (x.shape[0], 2, max_document_length))
+    return np.reshape(x_proc, (max_document_length, 2, x.shape[0]))
 
 
 def generate_batch(x, y):
@@ -76,15 +81,16 @@ def generate_batch(x, y):
                 align_x, align_y = (get_alignments(x, y, i, j, batch_size))
                 #align_y = np.reshape(align_y, (len(align_y)//2, 2))
                 align_x = convert_base_pairs(align_x)
-                align_x = np.swapaxes(align_x, 1, 2)
-                #print('Num Alignments', align_x.shape)
-                #print('Labels:', align_y.shape)
-                #print('Sample Alignment:', align_x[0], align_y[0])
+                #align_x = np.reshape(align_x, (align_x.shape[0], align_x.shape[2], 2))
+                #align_x = np.swapaxes(align_x, 1, 2)
+                print('Num Alignments', align_x.shape)
+                print('Labels:', align_y.shape)
+                print('Sample Alignment:', align_x[0], align_y[0])
                 yield align_x, align_y
 
 
 # load data
-x_rt, y_rt = dhrt.load_data_and_labels('h3.pos', 'h3.neg')
+x_rt, y_rt = dhrt.load_data_and_labels('h3k4me3.pos', 'h3k4me3.neg')
 
 x_rt = np.array([replace_spaces(seq) for seq in x_rt])
 print('X:', x_rt)
@@ -132,14 +138,14 @@ print(model.summary())
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['acc'])
 print('Training shapes:', x_train.shape, y_train.shape)
 print('Valid shapes:', x_valid.shape, y_valid.shape)
 history = model.fit_generator(generate_batch(x_train, y_train),
-                              steps_per_epoch=50,
+                              steps_per_epoch=10,
                               epochs=nb_epoch,
                               validation_data=generate_batch(x_valid, y_valid),
-                              validation_steps=50,
+                              validation_steps=10,
                               verbose=1)
 print(history.history.keys())
 # summarize history for accuracy
