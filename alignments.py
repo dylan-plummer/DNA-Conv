@@ -24,7 +24,7 @@ from Bio import pairwise2
 learning_rate = 0.001
 num_classes = 2
 num_features = 372
-batch_size = 8
+batch_size = 4
 nb_epoch = 16
 hidden_size = 100
 num_sequences = 10
@@ -109,7 +109,7 @@ def generate_vec_batch(x_train, y_train, batch_size, tokenizer, SkipGram):
             print('End of training set, temp batch:', len(x[j:]))
             align_x, align_y, max_length = (get_alignments(x_train, y_train, i, j, len(x_train[j:])))
         text = zip_alignments(align_x, max_length)
-        print(text)
+        #print(text)
         for _, doc in enumerate(pad_sequences(tokenizer.texts_to_sequences(text), maxlen=max_length, padding='post')):
             data, labels = skipgrams(sequence=doc, vocabulary_size=V, window_size=5, negative_samples=5.)
             x = [np.array(x) for x in zip(*data)]
@@ -135,10 +135,10 @@ def alignments2vec(x, y, V, tokenizer):
     SkipGram.compile(loss='binary_crossentropy', optimizer='adam')
 
     SkipGram.fit_generator(generate_vec_batch(x, y, batch_size, tokenizer, SkipGram),
-                           steps_per_epoch=10,
+                           steps_per_epoch=50,
                            epochs=10,#len(x_train)//batch_size//10,
                            validation_data=generate_vec_batch(x, y, batch_size, tokenizer, SkipGram),
-                           validation_steps=10,
+                           validation_steps=50,
                            verbose=1)
 
     f = open('alignment_vec.txt', 'w')
@@ -223,7 +223,8 @@ def generate_word2vec_batch(x, y):
         #print(word2vec_list, align_y)
         #print('shapes', word2vec_list.shape, align_y.shape)
         #align_x = np.reshape(word2vec_list, (align_x.shape[0], -1))
-        yield word2vec_list, align_y
+        if align_y.shape[1] == 2:
+            yield word2vec_list, align_y
 
 
 def generate_batch(x, y):
@@ -277,7 +278,7 @@ tokenizer = Tokenizer()
 tokenizer.fit_on_texts(get_vocab('atcgx'))
 V = len(tokenizer.word_index) + 1
 
-#alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
+alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
 
 model = Sequential()
 #model.add(Embedding(25, num_features))
