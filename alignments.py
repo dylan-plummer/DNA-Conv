@@ -12,6 +12,7 @@ from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D,
 from keras.optimizers import SGD, Adam
 from keras.layers.merge import Dot
 from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
 import gensim
 from keras.preprocessing.sequence import skipgrams
 from keras.utils import np_utils
@@ -23,7 +24,7 @@ from Bio import pairwise2
 learning_rate = 0.001
 num_classes = 2
 num_features = 372
-batch_size = 8
+batch_size = 4
 nb_epoch = 16
 hidden_size = 100
 num_sequences = 10
@@ -56,8 +57,9 @@ def get_alignments(x, y, seq_i, seq_j, batch_size):
                 align_y = np.append(align_y, np.array([1]))
             else:
                 align_y = np.append(align_y, np.array([0]))
-
-    return align_x, align_y
+    lens = [len(seq) for alignment in align_x for seq in alignment]
+    max_document_length = max(lens)
+    return align_x, align_y, max_document_length
 
 
 def get_vocab(chars):
@@ -81,13 +83,16 @@ def base_pairs_to_onehot(seq1, seq2, max_len):
     return index_arr
 
 
-def zip_alignments(x):
+def zip_alignments(x, max_len):
     x_proc = []
     for i in range(len(x)):
         proc = ''
-        for j in range(len(x[i][0])):
-            proc += x[i][0][j]+x[i][1][j] + ' '
-        x_proc = np.append(x_proc, proc)
+        for j in range(max_len):
+            if j < len(x[i][0]):
+                proc += x[i][0][j]+x[i][1][j] + ' '
+            else:
+                proc += '-- '
+        x_proc = np.append(x_proc, proc.replace('-', 'x'))
     return x_proc
 
 
@@ -96,16 +101,16 @@ def generate_vec_batch(x_train, y_train, batch_size, tokenizer, SkipGram):
         i = random.randint(0, len(x_train) - 1)
         j = random.randint(0, len(x_train) - 1)
         if (i + batch_size) < len(x_train) and (j + batch_size) < len(x_train):
-            align_x, align_y = (get_alignments(x_train, y_train, i, j, batch_size))
+            align_x, align_y, max_length = (get_alignments(x_train, y_train, i, j, batch_size))
         elif (i + batch_size) >= len(x_train):
             print('End of training set, temp batch:', len(x_train[i:]))
-            align_x, align_y = (get_alignments(x_train, y_train, i, j, len(x_train[i:])))
+            align_x, align_y, max_length = (get_alignments(x_train, y_train, i, j, len(x_train[i:])))
         else:
             print('End of training set, temp batch:', len(x[j:]))
-            align_x, align_y = (get_alignments(x_train, y_train, i, j, len(x_train[j:])))
-        text = zip_alignments(align_x)
+            align_x, align_y, max_length = (get_alignments(x_train, y_train, i, j, len(x_train[j:])))
+        text = zip_alignments(align_x, max_length)
         print(text)
-        for _, doc in enumerate(tokenizer.texts_to_sequences(text)):
+        for _, doc in enumerate(pad_sequences(tokenizer.texts_to_sequences(text), maxlen=max_length, padding='post')):
             data, labels = skipgrams(sequence=doc, vocabulary_size=V, window_size=5, negative_samples=5.)
             x = [np.array(x) for x in zip(*data)]
             y = np.array(labels, dtype=np.int32)
@@ -148,9 +153,7 @@ def alignments2vec(x, y, V, tokenizer):
 
 
 
-def convert_base_pairs(x, y):
-    lens = [len(seq) for alignment in x for seq in alignment]
-    max_document_length = max(lens)
+def convert_base_pairs(x, y, max_document_length):
     #print('Max seq length:', max_document_length)
     #print('Input shape:', x.shape)
     vocab_processor = learn.preprocessing.VocabularyProcessor(max_document_length)
@@ -174,43 +177,67 @@ def convert_base_pairs(x, y):
     #print('Labels shape', y_proc.shape)
     x_proc = np.reshape(x_proc, (y_proc.shape[0], -1))
     #print(x_proc)
-    return x_proc, y_proc
+    return x_proc, y_proc, max_document_length
 
-def get_list_of_word2vec(x, w2v):
-    vec = []
+
+def get_list_of_word2vec(x, w2v, max_length, n_samples):
+    word_vec = []
     for alignment in x:
-        vec = np.append(vec, w2v.get_vector(alignment))
-    return vec
+        vec = []
+        word_list = alignment.split(' ')[:-1]
+        for word in word_list:
+            if len(vec) == 0:
+                vec = w2v.word_vec(word)
+                #vec = w2v.get_vector(word.replace('-',''))
+            else:
+                vec = np.vstack((vec, w2v.word_vec(word)))
+        vec = np.reshape(vec, (len(word_list), -1))
+        #print(vec)
+        if len(word_vec) == 0:
+            word_vec = vec
+        else:
+            #print('shapes', word_vec.shape, vec.shape)
+            word_vec = np.dstack((word_vec, vec))
+    #print(word_vec)
+    #print(word_vec.shape)
+    word_vec = np.reshape(word_vec, (n_samples, -1, num_features))
+    return word_vec
 
 
 def generate_word2vec_batch(x, y):
     while True:
-        i = random.randint(0, len(x) - 1)
-        j = random.randint(0, len(x) - 1)
+        i = random.randint(0, len(x) - 1 - batch_size)
+        j = random.randint(0, len(x) - 1 - batch_size)
         w2v = gensim.models.KeyedVectors.load_word2vec_format('./alignment_vec.txt', binary=False)
         if (i + batch_size) < len(x) and (j + batch_size) < len(x):
-            align_x, align_y = (get_alignments(x, y, i, j, batch_size))
+            align_x, align_y, max_length = (get_alignments(x, y, i, j, batch_size))
         elif (i + batch_size) >= len(x):
             print('End of training set, temp batch:', len(x[i:]))
-            align_x, align_y = (get_alignments(x, y, i, j, len(x[i:])))
+            align_x, align_y, max_length = (get_alignments(x, y, i, j, len(x[i:])))
         else:
             print('End of training set, temp batch:', len(x[j:]))
-            align_x, align_y = (get_alignments(x, y, i, j, len(x[j:])))
-        text = zip_alignments(align_x)
-        return get_list_of_word2vec(text, w2v), align_y
+            align_x, align_y, max_length = (get_alignments(x, y, i, j, len(x[j:])))
+        text = zip_alignments(align_x, max_length)
+        word2vec_list = get_list_of_word2vec(text, w2v, max_length, align_y.shape[0])
+        align_y = np_utils.to_categorical(align_y)
+        #print(word2vec_list, align_y)
+        print('shapes', word2vec_list.shape, align_y.shape)
+        #align_x = np.reshape(word2vec_list, (align_x.shape[0], -1))
+        yield word2vec_list, align_y
+
 
 def generate_batch(x, y):
     while True:
         i = random.randint(0, len(x) - 1)
         j = random.randint(0, len(x) - 1)
         if (i + batch_size) < len(x) and (j + batch_size) < len(x):
-            align_x, align_y = (get_alignments(x, y, i, j, batch_size))
+            align_x, align_y, _ = (get_alignments(x, y, i, j, batch_size))
         elif (i + batch_size) >= len(x):
             print('End of training set, temp batch:', len(x[i:]))
-            align_x, align_y = (get_alignments(x, y, i, j, len(x[i:])))
+            align_x, align_y, _ = (get_alignments(x, y, i, j, len(x[i:])))
         else:
             print('End of training set, temp batch:', len(x[j:]))
-            align_x, align_y = (get_alignments(x, y, i, j, len(x[j:])))
+            align_x, align_y, _ = (get_alignments(x, y, i, j, len(x[j:])))
         #align_y = np.reshape(align_y, (len(align_y)//2, 2))
         align_x, align_y = convert_base_pairs(align_x, align_y)
         #align_x = np.expand_dims(align_x, axis=2)
@@ -247,15 +274,15 @@ x_train, x_valid, y_train, y_valid = train_test_split(x_shuffle,
 
 print('x shape:', x_train.shape)
 tokenizer = Tokenizer()
-tokenizer.fit_on_texts(get_vocab('atcg-'))
+tokenizer.fit_on_texts(get_vocab('atcgx'))
 V = len(tokenizer.word_index) + 1
 
 #alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
 
 model = Sequential()
-model.add(Embedding(num_features, 25))
-model.add(Dropout(0.5))
-model.add(Conv1D(filters=num_filters[0], kernel_size=50))
+#model.add(Embedding(25, num_features))
+#model.add(Dropout(0.5))
+model.add(Conv1D(filters=num_filters[0], kernel_size=50, input_shape=(None, num_features)))
 model.add(Activation('relu'))
 # model.add(Activation('relu'))
 # model.add(Dropout(0.3))
@@ -281,13 +308,13 @@ model.add(Dense(1024, activation='relu'))
 model.add(Dense(512, activation='relu'))
 #model.add(Dropout(0.5))
 model.add(GlobalAveragePooling1D())
-model.add(Dense(1))
-model.add(Activation('sigmoid'))
+model.add(Dense(num_classes))
+model.add(Activation('softmax'))
 print(model.summary())
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['accuracy'])
 print('Training shapes:', x_train.shape, y_train.shape)
 print('Valid shapes:', x_valid.shape, y_valid.shape)
 '''
