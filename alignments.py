@@ -21,13 +21,14 @@ from Bio import pairwise2
 
 
 # Network Parameters
-learning_rate = 0.001
+learning_rate = 0.01
 num_classes = 2
 num_features = 372
 batch_size = 4
 nb_epoch = 16
 hidden_size = 100
 num_sequences = 10
+steps_per_epoch = 10
 num_classes = 2
 num_filters = [16, 4]
 
@@ -97,9 +98,15 @@ def zip_alignments(x, max_len):
 
 
 def generate_vec_batch(x_train, y_train, batch_size, tokenizer, SkipGram):
+    indices_i = np.arange(0, len(x_train) - 1 - batch_size)
+    indices_j = np.arange(0, len(x_train) - 1 - batch_size)
     while True:
-        i = random.randint(0, len(x_train) - 1)
-        j = random.randint(0, len(x_train) - 1)
+        if len(indices_i) == 0:
+            indices_i = np.arange(0, len(x_train) - 1 - batch_size)
+        if len(indices_j) == 0:
+            indices_j = np.arange(0, len(x_train) - 1 - batch_size)
+        i = np.random.choice(indices_i, 1, replace=False)[0]
+        j = np.random.choice(indices_j, 1, replace=False)[0]
         if (i + batch_size) < len(x_train) and (j + batch_size) < len(x_train):
             align_x, align_y, max_length = (get_alignments(x_train, y_train, i, j, batch_size))
         elif (i + batch_size) >= len(x_train):
@@ -109,7 +116,6 @@ def generate_vec_batch(x_train, y_train, batch_size, tokenizer, SkipGram):
             print('End of training set, temp batch:', len(x[j:]))
             align_x, align_y, max_length = (get_alignments(x_train, y_train, i, j, len(x_train[j:])))
         text = zip_alignments(align_x, max_length)
-        #print(text)
         for _, doc in enumerate(pad_sequences(tokenizer.texts_to_sequences(text), maxlen=max_length, padding='post')):
             data, labels = skipgrams(sequence=doc, vocabulary_size=V, window_size=5, negative_samples=5.)
             x = [np.array(x) for x in zip(*data)]
@@ -134,12 +140,23 @@ def alignments2vec(x, y, V, tokenizer):
     SkipGram.summary()
     SkipGram.compile(loss='binary_crossentropy', optimizer='adam')
 
-    SkipGram.fit_generator(generate_vec_batch(x, y, batch_size, tokenizer, SkipGram),
-                           steps_per_epoch=50,
-                           epochs=10,#len(x_train)//batch_size//10,
+    history = SkipGram.fit_generator(generate_vec_batch(x, y, batch_size, tokenizer, SkipGram),
+                           steps_per_epoch=steps_per_epoch,
+                           epochs=len(x_train)//batch_size//steps_per_epoch,
                            validation_data=generate_vec_batch(x, y, batch_size, tokenizer, SkipGram),
-                           validation_steps=50,
+                           validation_steps=steps_per_epoch,
                            verbose=1)
+
+    print(history.history.keys())
+    # summarize history for accuracy
+    # summarize history for loss
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
 
     f = open('alignment_vec.txt', 'w')
     f.write('{} {}\n'.format(V - 1, num_features))
@@ -205,9 +222,15 @@ def get_list_of_word2vec(x, w2v, max_length, n_samples):
 
 
 def generate_word2vec_batch(x, y):
+    indices_i = np.arange(0, len(x) - 1 - batch_size)
+    indices_j = np.arange(0, len(x) - 1 - batch_size)
     while True:
-        i = random.randint(0, len(x) - 1 - batch_size)
-        j = random.randint(0, len(y) - 1 - batch_size)
+        if len(indices_i) == 0:
+            indices_i = np.arange(0, len(x) - 1 - batch_size)
+        if len(indices_j) == 0:
+            indices_j = np.arange(0, len(x) - 1 - batch_size)
+        i = np.random.choice(indices_i, 1, replace=False)[0]
+        j = np.random.choice(indices_j, 1, replace=False)[0]
         w2v = gensim.models.KeyedVectors.load_word2vec_format('./alignment_vec.txt', binary=False)
         if (i + batch_size) < len(x) and (j + batch_size) < len(x):
             align_x, align_y, max_length = (get_alignments(x, y, i, j, batch_size))
@@ -228,9 +251,15 @@ def generate_word2vec_batch(x, y):
 
 
 def generate_batch(x, y):
+    indices_i = np.arange(0, len(x) - 1 - batch_size)
+    indices_j = np.arange(0, len(x) - 1 - batch_size)
     while True:
-        i = random.randint(0, len(x) - 1)
-        j = random.randint(0, len(x) - 1)
+        if len(indices_i) == 0:
+            indices_i = np.arange(0, len(x) - 1 - batch_size)
+        if len(indices_j) == 0:
+            indices_j = np.arange(0, len(x) - 1 - batch_size)
+        i = np.random.choice(indices_i, 1, replace=False)[0]
+        j = np.random.choice(indices_j, 1, replace=False)[0]
         if (i + batch_size) < len(x) and (j + batch_size) < len(x):
             align_x, align_y, _ = (get_alignments(x, y, i, j, batch_size))
         elif (i + batch_size) >= len(x):
@@ -271,14 +300,14 @@ y_shuffle = y_rt[shuffled_rt]
 x_train, x_valid, y_train, y_valid = train_test_split(x_shuffle,
                                                       y_shuffle,
                                                       stratify=y_shuffle,
-                                                      test_size=0.5)
+                                                      test_size=0.2)
 
 print('x shape:', x_train.shape)
 tokenizer = Tokenizer()
 tokenizer.fit_on_texts(get_vocab('atcgx'))
 V = len(tokenizer.word_index) + 1
 
-alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
+#alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
 
 model = Sequential()
 #model.add(Embedding(25, num_features))
@@ -315,7 +344,7 @@ print(model.summary())
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 print('Training shapes:', x_train.shape, y_train.shape)
 print('Valid shapes:', x_valid.shape, y_valid.shape)
 '''
@@ -327,10 +356,10 @@ history = model.fit_generator(generate_batch(x_train, y_train),
                               verbose=1)
 '''
 history = model.fit_generator(generate_word2vec_batch(x_train, y_train),
-                              steps_per_epoch=10,
-                              epochs=10,#len(x_train)//batch_size//10,
+                              steps_per_epoch=steps_per_epoch,
+                              epochs=len(x_train)//batch_size//steps_per_epoch,
                               validation_data=generate_word2vec_batch(x_valid, y_valid),
-                              validation_steps=10,
+                              validation_steps=steps_per_epoch,
                               verbose=1)
 print(history.history.keys())
 # summarize history for accuracy
