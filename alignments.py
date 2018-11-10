@@ -24,7 +24,7 @@ from Bio import pairwise2
 learning_rate = 0.001
 num_classes = 2
 num_features = 372
-batch_size = 4
+batch_size = 8
 nb_epoch = 16
 hidden_size = 100
 num_sequences = 10
@@ -207,7 +207,7 @@ def get_list_of_word2vec(x, w2v, max_length, n_samples):
 def generate_word2vec_batch(x, y):
     while True:
         i = random.randint(0, len(x) - 1 - batch_size)
-        j = random.randint(0, len(x) - 1 - batch_size)
+        j = random.randint(0, len(y) - 1 - batch_size)
         w2v = gensim.models.KeyedVectors.load_word2vec_format('./alignment_vec.txt', binary=False)
         if (i + batch_size) < len(x) and (j + batch_size) < len(x):
             align_x, align_y, max_length = (get_alignments(x, y, i, j, batch_size))
@@ -221,7 +221,7 @@ def generate_word2vec_batch(x, y):
         word2vec_list = get_list_of_word2vec(text, w2v, max_length, align_y.shape[0])
         align_y = np_utils.to_categorical(align_y)
         #print(word2vec_list, align_y)
-        print('shapes', word2vec_list.shape, align_y.shape)
+        #print('shapes', word2vec_list.shape, align_y.shape)
         #align_x = np.reshape(word2vec_list, (align_x.shape[0], -1))
         yield word2vec_list, align_y
 
