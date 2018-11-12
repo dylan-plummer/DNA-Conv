@@ -2,9 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a7d3e2df-f2eb-4c7f-8d84-31d375312c7b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/DNA-Conv.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/DNA-Conv.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/alignment_vec.txt" beforeDir="false" afterPath="$PROJECT_DIR$/alignment_vec.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/alignments.py" beforeDir="false" afterPath="$PROJECT_DIR$/alignments.py" afterDir="false" />
     </list>
@@ -50,27 +47,27 @@
     <session id="-822920878">
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="3200" />
-          <entry key="txt" value="102" />
+          <entry key="py" value="3992" />
+          <entry key="txt" value="123" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="PLAIN_TEXT" value="102" />
-          <entry key="Python" value="3200" />
+          <entry key="PLAIN_TEXT" value="123" />
+          <entry key="Python" value="3992" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.vcs.git.usages" />
       <usages-collector id="statistics.file.types.open">
         <counts>
           <entry key="PLAIN_TEXT" value="1" />
-          <entry key="Python" value="4" />
+          <entry key="Python" value="5" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.lifecycle.project" />
       <usages-collector id="statistics.file.extensions.open">
         <counts>
-          <entry key="py" value="4" />
+          <entry key="py" value="5" />
           <entry key="txt" value="1" />
         </counts>
       </usages-collector>
@@ -101,8 +98,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/alignments.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="391">
-              <caret line="23" column="19" selection-start-line="23" selection-start-column="19" selection-end-line="23" selection-end-column="19" />
+            <state relative-caret-position="438">
+              <caret line="325" column="1" selection-start-line="325" selection-start-column="1" selection-end-line="325" selection-end-column="1" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
               </folding>
@@ -113,8 +110,17 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/seq_cnn2.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="538">
+            <state relative-caret-position="691">
               <caret line="97" column="63" selection-start-line="97" selection-start-column="32" selection-end-line="97" selection-end-column="63" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/train2.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-148">
+              <caret line="38" column="24" lean-forward="true" selection-start-line="38" selection-start-column="24" selection-end-line="38" selection-end-column="24" />
             </state>
           </provider>
         </entry>
@@ -132,6 +138,7 @@
     <findStrings>
       <find>num_fea</find>
       <find>120</find>
+      <find>'a', 'a</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -150,7 +157,7 @@
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="2030" />
+    <option name="x" value="-104" />
     <option name="y" value="-8" />
     <option name="width" value="1920" />
     <option name="height" value="1030" />
@@ -367,11 +374,18 @@
       <option name="project" value="LOCAL" />
       <updated>1541868283615</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="Add pairwise word2vec">
+      <created>1541893171544</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1541893171544</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1912" y="-8" width="1936" height="1056" extended-state="6" />
+    <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.28398314" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
@@ -402,7 +416,8 @@
     <MESSAGE value="Add introns and exons data" />
     <MESSAGE value="Add word2vec distributed representation" />
     <MESSAGE value="Word2vec working, now to tweak model" />
-    <option name="LAST_COMMIT_MESSAGE" value="Word2vec working, now to tweak model" />
+    <MESSAGE value="Add pairwise word2vec" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add pairwise word2vec" />
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/seq_cnn.py">
@@ -422,13 +437,6 @@
     <entry file="file://$PROJECT_DIR$/H3K4me3.txt">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/train2.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="731">
-          <caret line="52" column="29" selection-start-line="32" selection-end-line="52" selection-end-column="29" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/nucleosome_proc.py">
       <provider selected="true" editor-type-id="text-editor">
         <state>
@@ -444,20 +452,27 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/alignments (DylanPC's conflicted copy 2018-11-09).py" />
+    <entry file="file://$PROJECT_DIR$/alignment_vec.txt">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
     <entry file="file://$PROJECT_DIR$/seq_cnn2.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="538">
+        <state relative-caret-position="691">
           <caret line="97" column="63" selection-start-line="97" selection-start-column="32" selection-end-line="97" selection-end-column="63" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/alignment_vec.txt">
-      <provider selected="true" editor-type-id="text-editor" />
+    <entry file="file://$PROJECT_DIR$/train2.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-148">
+          <caret line="38" column="24" lean-forward="true" selection-start-line="38" selection-start-column="24" selection-end-line="38" selection-end-column="24" />
+        </state>
+      </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/alignments.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="391">
-          <caret line="23" column="19" selection-start-line="23" selection-start-column="19" selection-end-line="23" selection-end-column="19" />
+        <state relative-caret-position="438">
+          <caret line="325" column="1" selection-start-line="325" selection-start-column="1" selection-end-line="325" selection-end-column="1" />
           <folding>
             <element signature="e#0#13#0" expanded="true" />
           </folding>
