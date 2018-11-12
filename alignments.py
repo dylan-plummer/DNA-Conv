@@ -10,7 +10,7 @@ from itertools import product
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential, Model
-from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D, AveragePooling1D, LSTM, Bidirectional, BatchNormalization, GlobalAveragePooling1D, Input, Reshape
+from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D, MaxPooling1D, AveragePooling1D, LSTM, Bidirectional, BatchNormalization, GlobalAveragePooling1D, Input, Reshape
 from keras.optimizers import SGD, Adam
 from keras.layers.merge import Dot
 from keras.preprocessing.text import Tokenizer
@@ -27,7 +27,7 @@ learning_rate = 0.001
 num_classes = 2
 num_features = 372
 word_length = 4
-batch_size = 8
+batch_size = 4
 nb_epoch = 16
 hidden_size = 100
 num_sequences = 10
@@ -243,9 +243,9 @@ def generate_word2vec_batch(x, y):
             align_x, align_y, max_length = (get_alignments(x, y, i, j, len(x[j:])))
         text = zip_alignments(align_x, max_length)
         word2vec_list = get_list_of_word2vec(text, w2v, max_length, align_y.shape[0])
-        align_y = np_utils.to_categorical(align_y)
-        if align_y.shape[1] == 2:
-            yield word2vec_list, align_y
+        #align_y = np_utils.to_categorical(align_y)
+        #if align_y.shape[1] == 2:
+        yield word2vec_list, align_y
 
 
 def generate_batch(x, y):
@@ -295,42 +295,28 @@ print('Num Words:', V)
 #alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
 
 model = Sequential()
-#model.add(Embedding(25, num_features))
-#model.add(Dropout(0.5))
-model.add(Conv1D(filters=num_filters[0], kernel_size=word_length, input_shape=(None, word_length )))
+model.add(Conv1D(filters=64, kernel_size=word_length, input_shape=(None, word_length)))
 model.add(Activation('relu'))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.3))
-model.add(Conv1D(filters=num_filters[1], kernel_size=3))
+model.add(Conv1D(filters=64, kernel_size=3))
 model.add(Activation('relu'))
-#model.add(MaxPooling1D(pool_size=num_features // batch_size, padding='valid'))
-#model.add(Dropout(0.5))
-model.add(AveragePooling1D(pool_size=int(num_features), padding='same'))
-model.add(Activation('relu'))
-model.add(Dropout(0.5))
-model.add(BatchNormalization())
+model.add(MaxPooling1D(3))
+model.add(Conv1D(128, 3, activation='relu'))
+model.add(Conv1D(128, 3, activation='relu'))
+#model.add(AveragePooling1D(pool_size=int(num_features), padding='same'))
 #model.add(BatchNormalization())
-# Shape is (batch_size, sentence_length)
-#model.add(Conv2D(num_filters[0], kernel_size=(2,2), input_shape=(None, 2, 5)))
-#model.add(Conv1D(nb_filter=num_filters[0], filter_length=50, input_shape=(None, 120)))
-#model.add(Activation('relu'))
-#model.add(Conv1D(nb_filter=num_filters[1], filter_length=5))
-#model.add(Activation('relu'))
-model.add(Bidirectional(LSTM(hidden_size)))
-#model.add(MaxPooling2D(pool_size=(1, 1)))
-model.add(Dense(2048, activation='relu'))
-model.add(Dense(1024, activation='relu'))
-model.add(Dense(512, activation='relu'))
-#model.add(Dropout(0.5))
-#
-#model.add(GlobalAveragePooling1D())
-model.add(Dense(num_classes))
-model.add(Activation('softmax'))
+#model.add(Bidirectional(LSTM(hidden_size)))
+#model.add(Dense(2048, activation='relu'))
+#model.add(Dense(1024, activation='relu'))
+#model.add(Dense(512, activation='relu'))
+model.add(GlobalAveragePooling1D())
+model.add(Dropout(0.5))
+model.add(Dense(1))
+model.add(Activation('sigmoid'))
 print(model.summary())
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
 print('Training shapes:', x_train.shape, y_train.shape)
 print('Valid shapes:', x_valid.shape, y_valid.shape)
 '''

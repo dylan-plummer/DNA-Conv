@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="a7d3e2df-f2eb-4c7f-8d84-31d375312c7b" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/alignment_vec.txt" beforeDir="false" afterPath="$PROJECT_DIR$/alignment_vec.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/alignments.py" beforeDir="false" afterPath="$PROJECT_DIR$/alignments.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -47,14 +47,14 @@
     <session id="-822920878">
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="3992" />
-          <entry key="txt" value="123" />
+          <entry key="py" value="4072" />
+          <entry key="txt" value="151" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="PLAIN_TEXT" value="123" />
-          <entry key="Python" value="3992" />
+          <entry key="PLAIN_TEXT" value="151" />
+          <entry key="Python" value="4072" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.vcs.git.usages" />
@@ -98,8 +98,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/alignments.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="438">
-              <caret line="325" column="1" selection-start-line="325" selection-start-column="1" selection-end-line="325" selection-end-column="1" />
+            <state relative-caret-position="136">
+              <caret line="296" column="20" selection-start-line="296" selection-start-column="20" selection-end-line="296" selection-end-column="20" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
               </folding>
@@ -157,7 +157,7 @@
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="-104" />
+    <option name="x" value="1596" />
     <option name="y" value="-8" />
     <option name="width" value="1920" />
     <option name="height" value="1030" />
@@ -381,11 +381,19 @@
       <option name="project" value="LOCAL" />
       <updated>1541893171544</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Add configurable word_length">
+      <created>1541984908387</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1541984908387</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
+    <frame x="1912" y="-8" width="1936" height="1056" extended-state="6" />
+    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.28398314" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
@@ -417,7 +425,8 @@
     <MESSAGE value="Add word2vec distributed representation" />
     <MESSAGE value="Word2vec working, now to tweak model" />
     <MESSAGE value="Add pairwise word2vec" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add pairwise word2vec" />
+    <MESSAGE value="Add configurable word_length" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add configurable word_length" />
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/seq_cnn.py">
@@ -471,8 +480,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/alignments.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="438">
-          <caret line="325" column="1" selection-start-line="325" selection-start-column="1" selection-end-line="325" selection-end-column="1" />
+        <state relative-caret-position="136">
+          <caret line="296" column="20" selection-start-line="296" selection-start-column="20" selection-end-line="296" selection-end-column="20" />
           <folding>
             <element signature="e#0#13#0" expanded="true" />
           </folding>
