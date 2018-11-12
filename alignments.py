@@ -10,7 +10,7 @@ from itertools import product
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential, Model
-from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D, MaxPooling1D, AveragePooling1D, LSTM, Bidirectional, BatchNormalization, GlobalAveragePooling1D, Input, Reshape
+from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D, MaxPooling1D, AveragePooling1D, LSTM, Bidirectional, BatchNormalization, GlobalAveragePooling1D, Input, Reshape, Concatenate, concatenate
 from keras.optimizers import SGD, Adam
 from keras.layers.merge import Dot
 from keras.preprocessing.text import Tokenizer
@@ -91,6 +91,31 @@ def base_pairs_to_onehot(seq1, seq2, max_len):
     return index_arr
 
 
+def split_alignments(x, max_len):
+    s1 = []
+    s2 = []
+    for i in range(len(x)):
+        proc1 = ''
+        proc2 = ''
+        for j in range(max_len):
+            #print(i, j)
+            if j < len(x[i][0]):
+                proc1 += (x[i][0][j]).replace('-', 'x')
+                proc2 += (x[i][1][j]).replace('-', 'x')
+            else:
+                proc1 += 'x'
+                proc2 += 'x'
+                #re.findall('..', '1234567890')
+        #proc = [proc[i:i+word_length] for i in range(0, len(proc), word_length)]
+        proc1 = ' '.join([proc1[i:i + word_length] for i in range(0, len(proc1), word_length)])
+        proc2 = ' '.join([proc2[i:i + word_length] for i in range(0, len(proc2), word_length)])
+        #proc = re.findall('....', proc)
+        #print(proc)
+        s1 = np.append(s1, proc1)
+        s2 = np.append(s2, proc2)
+    return s1, s2
+
+
 def zip_alignments(x, max_len):
     x_proc = []
     for i in range(len(x)):
@@ -128,8 +153,9 @@ def generate_vec_batch(x_train, y_train, batch_size, tokenizer, SkipGram):
         else:
             print('End of training set, temp batch:', len(x[j:]))
             align_x, align_y, max_length = (get_alignments(x_train, y_train, i, j, len(x_train[j:])))
-        text = zip_alignments(align_x, max_length)
-        for _, doc in enumerate(pad_sequences(tokenizer.texts_to_sequences(text), maxlen=max_length, padding='post')):
+        #text = zip_alignments(align_x, max_length)
+        s1, s2 = split_alignments(align_x, max_length)
+        for _, doc in enumerate(pad_sequences(tokenizer.texts_to_sequences(np.append(s1, s2)), maxlen=max_length, padding='post')):
             data, labels = skipgrams(sequence=doc, vocabulary_size=V, window_size=word_length, negative_samples=5.)
             x = [np.array(x) for x in zip(*data)]
             y = np.array(labels, dtype=np.int32)
@@ -242,10 +268,12 @@ def generate_word2vec_batch(x, y):
             print('End of training set, temp batch:', len(x[j:]))
             align_x, align_y, max_length = (get_alignments(x, y, i, j, len(x[j:])))
         text = zip_alignments(align_x, max_length)
-        word2vec_list = get_list_of_word2vec(text, w2v, max_length, align_y.shape[0])
-        #align_y = np_utils.to_categorical(align_y)
-        #if align_y.shape[1] == 2:
-        yield word2vec_list, align_y
+        s1, s2 = split_alignments(align_x, max_length)
+        word2vec1 = get_list_of_word2vec(s1, w2v, max_length, align_y.shape[0])
+        word2vec2 = get_list_of_word2vec(s2, w2v, max_length, align_y.shape[0])
+        align_y = np_utils.to_categorical(align_y)
+        if align_y.shape[1] == 2:
+            yield [word2vec1, word2vec2], align_y
 
 
 def generate_batch(x, y):
@@ -293,8 +321,10 @@ V = len(tokenizer.word_index) + 1
 print('Num Words:', V)
 
 #alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
-
+'''
 model = Sequential()
+'''
+'''
 model.add(Conv1D(filters=64, kernel_size=word_length, input_shape=(None, word_length)))
 model.add(Activation('relu'))
 model.add(Conv1D(filters=64, kernel_size=3))
@@ -302,23 +332,47 @@ model.add(Activation('relu'))
 model.add(MaxPooling1D(3))
 model.add(Conv1D(128, 3, activation='relu'))
 model.add(Conv1D(128, 3, activation='relu'))
-#model.add(AveragePooling1D(pool_size=int(num_features), padding='same'))
-#model.add(BatchNormalization())
-#model.add(Bidirectional(LSTM(hidden_size)))
-#model.add(Dense(2048, activation='relu'))
-#model.add(Dense(1024, activation='relu'))
-#model.add(Dense(512, activation='relu'))
 model.add(GlobalAveragePooling1D())
 model.add(Dropout(0.5))
 model.add(Dense(1))
 model.add(Activation('sigmoid'))
-print(model.summary())
+'''
+'''
+model.add(LSTM(32, return_sequences=True, stateful=True, batch_input_shape=((batch_size * batch_size - 2 * batch_size + 2), None, word_length)))
+model.add(LSTM(32, return_sequences=True, stateful=True))
+model.add(LSTM(32, stateful=True))
+model.add(Dense(num_classes, activation='softmax'))
+'''
+encoder_a = Input(shape=(None, word_length))
+conv_1_a = Conv1D(64, word_length, activation='relu')(encoder_a)
+conv_2_a = Conv1D(64, 3, activation='relu')(conv_1_a)
+pool_a = MaxPooling1D(3)(conv_2_a)
+conv_3_a = Conv1D(128, 3, activation='relu')(pool_a)
+conv_4_a = Conv1D(128, 3, activation='relu')(conv_3_a)
+lstm_a = LSTM(32)(conv_4_a)
+dense_a = Dense(32, activation='relu')(lstm_a)
+
+encoder_b = Input(shape=(None, word_length))
+conv_1_b = Conv1D(64, word_length, activation='relu')(encoder_b)
+conv_2_b = Conv1D(64, 3, activation='relu')(conv_1_b)
+pool_b = MaxPooling1D(3)(conv_2_b)
+conv_3_b = Conv1D(128, 3, activation='relu')(pool_b)
+conv_4_b = Conv1D(128, 3, activation='relu')(conv_3_b)
+lstm_b = LSTM(32)(conv_3_b)
+dense_b = Dense(32, activation='relu')(lstm_b)
+
+decoder = concatenate([dense_a, dense_b])
+
+dense = Dense(32, activation='relu')(decoder)
+output = Dense(num_classes, activation='softmax')(dense)
+model = Model(inputs=[encoder_a, encoder_b], outputs=output)
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='binary_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
 print('Training shapes:', x_train.shape, y_train.shape)
 print('Valid shapes:', x_valid.shape, y_valid.shape)
+print(model.summary())
 '''
 history = model.fit_generator(generate_batch(x_train, y_train),
                               steps_per_epoch=10,
