@@ -10,7 +10,7 @@ from itertools import product
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential, Model
-from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D, MaxPooling1D, AveragePooling1D, LSTM, Bidirectional, BatchNormalization, GlobalAveragePooling1D, Input, Reshape, Concatenate, concatenate
+from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D, MaxPooling1D, AveragePooling1D, LSTM, Bidirectional, BatchNormalization, GlobalAveragePooling1D, Input, Reshape, Concatenate, concatenate, GlobalMaxPooling1D
 from keras.optimizers import SGD, Adam
 from keras.layers.merge import Dot
 from keras.preprocessing.text import Tokenizer
@@ -26,7 +26,7 @@ from Bio import pairwise2
 learning_rate = 0.001
 num_classes = 2
 num_features = 372
-word_length = 4
+word_length = 6
 batch_size = 4
 nb_epoch = 16
 hidden_size = 100
@@ -349,8 +349,9 @@ conv_2_a = Conv1D(64, 3, activation='relu')(conv_1_a)
 pool_a = MaxPooling1D(3)(conv_2_a)
 conv_3_a = Conv1D(128, 3, activation='relu')(pool_a)
 conv_4_a = Conv1D(128, 3, activation='relu')(conv_3_a)
-lstm_a = LSTM(32)(conv_4_a)
-dense_a = Dense(32, activation='relu')(lstm_a)
+#flat_a = Flatten()(conv_4_a)
+#lstm_a = LSTM(32)(conv_4_a)
+#dense_a = Dense(32, activation='relu')(lstm_a)
 
 encoder_b = Input(shape=(None, word_length))
 conv_1_b = Conv1D(64, word_length, activation='relu')(encoder_b)
@@ -358,18 +359,27 @@ conv_2_b = Conv1D(64, 3, activation='relu')(conv_1_b)
 pool_b = MaxPooling1D(3)(conv_2_b)
 conv_3_b = Conv1D(128, 3, activation='relu')(pool_b)
 conv_4_b = Conv1D(128, 3, activation='relu')(conv_3_b)
-lstm_b = LSTM(32)(conv_3_b)
-dense_b = Dense(32, activation='relu')(lstm_b)
+#lstm_b = LSTM(32)(conv_3_b)
+#dense_b = Dense(32, activation='relu')(lstm_b)
+#flat_b = Flatten()(conv_4_b)
 
-decoder = concatenate([dense_a, dense_b])
+decoder = concatenate([conv_4_a, conv_4_b])
 
-dense = Dense(32, activation='relu')(decoder)
-output = Dense(num_classes, activation='softmax')(dense)
+conv_1 = Conv1D(64, word_length, activation='relu')(decoder)
+conv_2 = Conv1D(64, 3, activation='relu')(conv_1)
+pool = MaxPooling1D(3)(conv_2)
+conv_3 = Conv1D(128, 3, activation='relu')(pool)
+conv_4 = Conv1D(128, 3, activation='relu')(conv_3)
+dense_1 = Dense(2048, activation='relu')(conv_4)
+dense_2 = Dense(1024, activation='relu')(dense_1)
+dense_3 = Dense(512, activation='relu')(dense_2)
+global_pool = GlobalMaxPooling1D()(dense_3)
+output = Dense(num_classes, activation='softmax')(global_pool)
 model = Model(inputs=[encoder_a, encoder_b], outputs=output)
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
 print('Training shapes:', x_train.shape, y_train.shape)
 print('Valid shapes:', x_valid.shape, y_valid.shape)
 print(model.summary())
@@ -383,7 +393,7 @@ history = model.fit_generator(generate_batch(x_train, y_train),
 '''
 history = model.fit_generator(generate_word2vec_batch(x_train, y_train),
                               steps_per_epoch=steps_per_epoch,
-                              epochs=16,#len(x_train)//batch_size//steps_per_epoch,
+                              epochs=len(x_train)//batch_size//steps_per_epoch,
                               validation_data=generate_word2vec_batch(x_valid, y_valid),
                               validation_steps=steps_per_epoch,
                               verbose=1)
