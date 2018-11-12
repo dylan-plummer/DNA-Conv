@@ -1,4 +1,5 @@
 import random
+import os
 import data_helpers as dhrt
 from tensorflow.contrib import learn
 import numpy as np
@@ -47,7 +48,7 @@ def get_alignments(x, y, seq_i, seq_j, batch_size):
     :param y: a set of labels
     :return: a set of pairwise alignments of the sets in x (cartesian product) x
     '''
-    a = pairwise2.align.localxx(x[seq_i], x[seq_j], one_alignment_only=True)[0]
+    a = pairwise2.align.globalxx(x[seq_i], x[seq_j], one_alignment_only=True)[0]
     align_x = np.array(list(a)[0:2])
     if np.array_equal(y[seq_i], y[seq_j]):
         align_y = np.array([1])
@@ -55,7 +56,7 @@ def get_alignments(x, y, seq_i, seq_j, batch_size):
         align_y = np.array([0])
     for i in range(seq_i + 1, seq_i + batch_size):
         for j in range(seq_j + 1, seq_j + batch_size):
-            a = pairwise2.align.localxx(x[i], x[j], one_alignment_only=True)[0]
+            a = pairwise2.align.globalxx(x[i], x[j], one_alignment_only=True)[0]
             align_x = np.vstack((align_x, np.array(list(a)[0:2])))
             if np.array_equal(y[i], y[j]):
                 align_y = np.append(align_y, np.array([1]))
@@ -183,8 +184,7 @@ def alignments2vec(x, y, V, tokenizer):
                            steps_per_epoch=steps_per_epoch,
                            epochs=len(x_train)//batch_size//steps_per_epoch,
                            validation_data=generate_vec_batch(x, y, batch_size, tokenizer, SkipGram),
-                           validation_steps=steps_per_epoch,
-                           verbose=1)
+                           validation_steps=steps_per_epoch)
 
     print(history.history.keys())
     # summarize history for accuracy
@@ -205,7 +205,7 @@ def alignments2vec(x, y, V, tokenizer):
     f.close()
 
     w2v = gensim.models.KeyedVectors.load_word2vec_format('./alignment_vec.txt', binary=False)
-    print(w2v.most_similar(positive=['aaaa']))
+    print(w2v.most_similar(positive=['a'*word_length]))
 
 
 
@@ -299,15 +299,28 @@ def generate_batch(x, y):
 
 
 # load data
-x_rt, y_rt = dhrt.load_data_and_labels('h3.pos', 'h3.neg')
+dir = os.getcwd() + '/histone_data/'
+x1, y1 = dhrt.load_data_and_labels(dir + 'pos/h3k4me1.pos', dir + 'neg/h3k4me1.neg', pos=1)
+x2, y2 = dhrt.load_data_and_labels(dir + 'pos/h3k4me2.pos', dir + 'neg/h3k4me2.neg', pos=2)
+x3, y3 = dhrt.load_data_and_labels(dir + 'pos/h3k4me3.pos', dir + 'neg/h3k4me3.neg', pos=3)
+x4, y4 = dhrt.load_data_and_labels(dir + 'pos/h3k9ac.pos', dir + 'neg/h3k4me1.neg', pos=4)
+x5, y5 = dhrt.load_data_and_labels(dir + 'pos/h3k14ac.pos', dir + 'neg/h3k14ac.neg', pos=5)
+x6, y6 = dhrt.load_data_and_labels(dir + 'pos/h3k36me3.pos', dir + 'neg/h3k36me3.neg', pos=6)
+x7, y7 = dhrt.load_data_and_labels(dir + 'pos/h3k79me3.pos', dir + 'neg/h3k79me3.neg', pos=7)
+x8, y8 = dhrt.load_data_and_labels(dir + 'pos/h4.pos', dir + 'neg/h4.neg', pos=8)
+x9, y9 = dhrt.load_data_and_labels(dir + 'pos/h4ac.pos', dir + 'neg/h4ac.neg', pos=9)
+
+x_rt = np.concatenate((x1,x2,x3,x4,x5,x6,x7,x8,x9))
+y_rt = np.concatenate((y1,y2,y3,y4,y5,y6,y7,y8,y9))
 
 x_rt = np.array([replace_spaces(seq) for seq in x_rt])
-print('X:', x_rt)
 y_rt = np.array(list(y_rt))
-print(pairwise2.align.localxx('aaattcgctgc','aaatctcgcgat', one_alignment_only=True))
 shuffled_rt = np.random.permutation(range(len(x_rt)))
 x_shuffle = x_rt[shuffled_rt]
 y_shuffle = y_rt[shuffled_rt]
+print('X:', x_shuffle)
+print('Y:', y_shuffle)
+print(pairwise2.align.globalxx(x_shuffle[0], x_shuffle[1], one_alignment_only=True))
 
 x_train, x_valid, y_train, y_valid = train_test_split(x_shuffle,
                                                       y_shuffle,
@@ -320,7 +333,7 @@ tokenizer.fit_on_texts(get_vocab('atcgx'))
 V = len(tokenizer.word_index) + 1
 print('Num Words:', V)
 
-#alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
+alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
 '''
 model = Sequential()
 '''
@@ -349,6 +362,7 @@ conv_2_a = Conv1D(64, 3, activation='relu')(conv_1_a)
 pool_a = MaxPooling1D(3)(conv_2_a)
 conv_3_a = Conv1D(128, 3, activation='relu')(pool_a)
 conv_4_a = Conv1D(128, 3, activation='relu')(conv_3_a)
+norm_a = BatchNormalization()(conv_4_a)
 #flat_a = Flatten()(conv_4_a)
 #lstm_a = LSTM(32)(conv_4_a)
 #dense_a = Dense(32, activation='relu')(lstm_a)
@@ -359,22 +373,23 @@ conv_2_b = Conv1D(64, 3, activation='relu')(conv_1_b)
 pool_b = MaxPooling1D(3)(conv_2_b)
 conv_3_b = Conv1D(128, 3, activation='relu')(pool_b)
 conv_4_b = Conv1D(128, 3, activation='relu')(conv_3_b)
+norm_b = BatchNormalization()(conv_4_b)
 #lstm_b = LSTM(32)(conv_3_b)
 #dense_b = Dense(32, activation='relu')(lstm_b)
 #flat_b = Flatten()(conv_4_b)
 
-decoder = concatenate([conv_4_a, conv_4_b])
+decoder = concatenate([norm_a, norm_b])
 
-conv_1 = Conv1D(64, word_length, activation='relu')(decoder)
-conv_2 = Conv1D(64, 3, activation='relu')(conv_1)
-pool = MaxPooling1D(3)(conv_2)
-conv_3 = Conv1D(128, 3, activation='relu')(pool)
-conv_4 = Conv1D(128, 3, activation='relu')(conv_3)
-dense_1 = Dense(2048, activation='relu')(conv_4)
+#conv_1 = Conv1D(64, word_length, activation='relu')(decoder)
+#conv_2 = Conv1D(64, 3, activation='relu')(conv_1)
+pool = MaxPooling1D(3)(decoder)
+#conv_3 = Conv1D(128, 3, activation='relu')(pool)
+#conv_4 = Conv1D(128, 3, activation='relu')(conv_3)
+dense_1 = Dense(2048, activation='relu')(pool)
 dense_2 = Dense(1024, activation='relu')(dense_1)
 dense_3 = Dense(512, activation='relu')(dense_2)
 global_pool = GlobalMaxPooling1D()(dense_3)
-output = Dense(num_classes, activation='softmax')(global_pool)
+output = Dense(num_classes, activation='sigmoid')(global_pool)
 model = Model(inputs=[encoder_a, encoder_b], outputs=output)
 
 adam = Adam(lr=learning_rate)

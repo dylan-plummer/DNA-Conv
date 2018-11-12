@@ -1,8 +1,11 @@
+import os
+
 alphabet = ['A', 'T', 'C', 'G']
 positive = True # keeps track of whether next sequence is pos or neg
-datafile = 'H3K4me3.txt'
-pos_file = 'h3k4me3.pos'
-neg_file = 'h3k4me3.neg'
+dataset = 'h4ac.txt'
+datafile = os.getcwd() + '/histone_data/' + dataset
+pos_file = os.getcwd() + '/histone_data/pos/' + dataset[:len(dataset) - 4] + '.pos'
+neg_file = os.getcwd() + '/histone_data/neg/' + dataset[:len(dataset) - 4] + '.neg'
 
 with open(datafile, 'r') as data, open(pos_file, 'w') as pos, open(neg_file, 'w') as neg:
     # this won't work if file cannot fit into memory
