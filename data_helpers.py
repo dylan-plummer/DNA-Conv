@@ -45,6 +45,22 @@ def load_data_and_labels(pos_file,neg_file, pos=1):
     return [x_text, y]
 
 
+def load_data_and_labels_pos(pos_file, pos=1):
+    """
+    Loads MR polarity data from files, splits the data into words and generates labels.
+    Returns split sentences and labels.
+    """
+    # Load data from files
+    positive_examples = list(open(pos_file, "r").readlines())
+    positive_examples = [s.strip() for s in positive_examples]
+    # Split by words
+    x_text = positive_examples
+    x_text = [clean_str(sent) for sent in x_text]
+    # Generate labels
+    positive_labels = [pos for _ in positive_examples]
+    return [x_text, positive_labels]
+
+
 def batch_iter(data, batch_size, num_epochs, shuffle=True):
     """
     Generates a batch iterator for a dataset.
