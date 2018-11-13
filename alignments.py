@@ -52,7 +52,7 @@ def get_alignments(x, y, seq_i, seq_j, batch_size):
     a = pairwise2.align.globalxx(x[seq_i], x[seq_j], one_alignment_only=True)[0]
     align_x = np.array(list(a)[0:2])
     if np.array_equal(y[seq_i], y[seq_j]):
-        align_y = np.array([1])
+        align_y = np.array([y[seq_i]])
     else:
         align_y = np.array([0])
     for i in range(seq_i + 1, seq_i + batch_size):
@@ -60,7 +60,7 @@ def get_alignments(x, y, seq_i, seq_j, batch_size):
             a = pairwise2.align.globalxx(x[i], x[j], one_alignment_only=True)[0]
             align_x = np.vstack((align_x, np.array(list(a)[0:2])))
             if np.array_equal(y[i], y[j]):
-                align_y = np.append(align_y, np.array([1]))
+                align_y = np.append(align_y, np.array([y[i]]))
             else:
                 align_y = np.append(align_y, np.array([0]))
     lens = [len(seq) for alignment in align_x for seq in alignment]
@@ -296,6 +296,7 @@ def generate_batch(x, y):
             print('End of training set, temp batch:', len(x[j:]))
             align_x, align_y, max_length = (get_alignments(x, y, i, j, len(x[j:])))
         s1, s2 = split_alignments(align_x, max_length)
+        #align_x = x[i:i + batch_size]
         print(align_x)
         print(s1)
         print(s2)
@@ -363,22 +364,26 @@ model.add(LSTM(32, stateful=True))
 model.add(Dense(num_classes, activation='softmax'))
 '''
 encoder_a = Input(shape=(None, vec_length))
-conv_1_a = Conv1D(64, word_length, activation='relu')(encoder_a)
-conv_2_a = Conv1D(64, 3, activation='relu')(conv_1_a)
-pool_a = MaxPooling1D(3)(conv_2_a)
-conv_3_a = Conv1D(128, 3, activation='relu')(pool_a)
-conv_4_a = Conv1D(128, 3, activation='relu')(conv_3_a)
-norm_a = BatchNormalization()(conv_4_a)
+conv_1_a = Conv1D(64, word_length)(encoder_a)
+conv_2_a = Conv1D(64, 3)(conv_1_a)
+norm_a = BatchNormalization()(conv_2_a)
+activate_a = Activation('relu')(norm_a)
+pool_a = MaxPooling1D(3)(activate_a)
+drop_a = Dropout(0.5)(pool_a)
+#conv_3_a = Conv1D(128, 3, activation='relu')(pool_a)
+#conv_4_a = Conv1D(128, 3, activation='relu')(conv_3_a)
 
 encoder_b = Input(shape=(None, vec_length))
-conv_1_b = Conv1D(64, word_length, activation='relu')(encoder_b)
-conv_2_b = Conv1D(64, 3, activation='relu')(conv_1_b)
-pool_b = MaxPooling1D(3)(conv_2_b)
-conv_3_b = Conv1D(128, 3, activation='relu')(pool_b)
-conv_4_b = Conv1D(128, 3, activation='relu')(conv_3_b)
-norm_b = BatchNormalization()(conv_4_b)
+conv_1_b = Conv1D(64, word_length)(encoder_b)
+conv_2_b = Conv1D(64, 3)(conv_1_b)
+norm_b = BatchNormalization()(conv_2_b)
+activate_b = Activation('relu')(norm_b)
+pool_b = MaxPooling1D(3)(activate_b)
+drop_b = Dropout(0.5)(pool_b)
+#conv_3_b = Conv1D(128, 3, activation='relu')(pool_b)
+#conv_4_b = Conv1D(128, 3, activation='relu')(conv_3_b)
 
-decoder = concatenate([norm_a, norm_b])
+decoder = concatenate([drop_a, drop_b])
 
 #dense_1 = Dense(2048, activation='relu')(pool_2)
 #dense_2 = Dense(1024, activation='relu')(dense_1)
@@ -401,10 +406,10 @@ history = model.fit_generator(generate_batch(x_train, y_train),
                               validation_steps=10,
                               verbose=1)
 '''
-history = model.fit_generator(generate_batch(x_train, y_train),
+history = model.fit_generator(generate_word2vec_batch(x_train, y_train),
                               steps_per_epoch=steps_per_epoch,
                               epochs=32,#len(x_train)//batch_size//steps_per_epoch,
-                              validation_data=generate_batch(x_valid, y_valid),
+                              validation_data=generate_word2vec_batch(x_valid, y_valid),
                               validation_steps=steps_per_epoch)
 # Save the weights
 model.save_weights('model_weights.h5')
