@@ -11,7 +11,7 @@ from itertools import product
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential, Model
-from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D, MaxPooling1D, AveragePooling1D, LSTM, Bidirectional, BatchNormalization, GlobalAveragePooling1D, Input, Reshape, Concatenate, concatenate, GlobalMaxPooling1D
+from keras.layers import Dense, Activation, Embedding, Flatten, Dropout, Conv1D, MaxPooling1D, AveragePooling1D, LSTM, Bidirectional, BatchNormalization, GlobalAveragePooling1D, Input, Reshape, Concatenate, concatenate, GlobalMaxPooling1D, dot
 from keras.optimizers import SGD, Adam
 from keras.layers.merge import Dot
 from keras.preprocessing.text import Tokenizer
@@ -49,18 +49,18 @@ def get_alignments(x, y, seq_i, seq_j, batch_size):
     :param y: a set of labels
     :return: a set of pairwise alignments of the sets in x (cartesian product) x
     '''
-    a = pairwise2.align.globalxx(x[seq_i], x[seq_j], one_alignment_only=True)[0]
+    a = pairwise2.align.localxx(x[seq_i], x[seq_j], one_alignment_only=True)[0]
     align_x = np.array(list(a)[0:2])
     if np.array_equal(y[seq_i], y[seq_j]):
-        align_y = np.array([y[seq_i]])
+        align_y = np.array([1])
     else:
         align_y = np.array([0])
     for i in range(seq_i + 1, seq_i + batch_size):
         for j in range(seq_j + 1, seq_j + batch_size):
-            a = pairwise2.align.globalxx(x[i], x[j], one_alignment_only=True)[0]
+            a = pairwise2.align.localxx(x[i], x[j], one_alignment_only=True)[0]
             align_x = np.vstack((align_x, np.array(list(a)[0:2])))
             if np.array_equal(y[i], y[j]):
-                align_y = np.append(align_y, np.array([y[i]]))
+                align_y = np.append(align_y, np.array([1]))
             else:
                 align_y = np.append(align_y, np.array([0]))
     lens = [len(seq) for alignment in align_x for seq in alignment]
@@ -109,8 +109,8 @@ def split_alignments(x, max_len):
                 proc2 += 'x'
                 #re.findall('..', '1234567890')
         #proc = [proc[i:i+word_length] for i in range(0, len(proc), word_length)]
-        proc1 = ' '.join([proc1[i:i + word_length] for i in range(0, len(proc1), word_length)])
-        proc2 = ' '.join([proc2[i:i + word_length] for i in range(0, len(proc2), word_length)])
+        proc1 = ' '.join([proc1[i:i + word_length] for i in range(0, len(proc1))])
+        proc2 = ' '.join([proc2[i:i + word_length] for i in range(0, len(proc2))])
         #proc = re.findall('....', proc)
         #print(proc)
         s1 = np.append(s1, proc1)
@@ -277,7 +277,7 @@ def generate_word2vec_batch(x, y):
             yield [word2vec1, word2vec2], align_y
 
 
-def generate_batch(x, y):
+def generate_batch(x, y, tokenizer):
     indices_i = np.arange(0, len(x) - 1 - batch_size)
     indices_j = np.arange(0, len(x) - 1 - batch_size)
     while True:
@@ -301,13 +301,11 @@ def generate_batch(x, y):
             s1 = np.append(s1, alignment.split(' '))
         for alignment in a2:
             s2 = np.append(s2, alignment.split(' '))
-        s1 = np.reshape(s1, (a1.shape[0], -1, 1))
-        s2 = np.reshape(s2, (a2.shape[0], -1, 1))
-        print(align_x)
-        print(s1)
-        print(s2)
-        align_y = np_utils.to_categorical(align_y, num_classes=9)
-        print(align_y)
+        s1 = np.array(tokenizer.texts_to_sequences(a1))
+        s2 = np.array(tokenizer.texts_to_sequences(a2))
+        s1 = np.reshape(s1, (a1.shape[0], -1))
+        s2 = np.reshape(s2, (a2.shape[0], -1))
+        #align_y = np_utils.to_categorical(align_y, num_classes=2)
         yield [s1, s2], align_y
 
 
@@ -333,7 +331,7 @@ x_shuffle = x_rt[shuffled_rt]
 y_shuffle = y_rt[shuffled_rt]
 print('X:', x_shuffle)
 print('Y:', y_shuffle)
-print(pairwise2.align.globalxx(x_shuffle[0], x_shuffle[1], one_alignment_only=True))
+print(pairwise2.align.localxx(x_shuffle[0], x_shuffle[1], one_alignment_only=True))
 
 x_train, x_valid, y_train, y_valid = train_test_split(x_shuffle,
                                                       y_shuffle,
@@ -369,18 +367,21 @@ model.add(LSTM(32, return_sequences=True, stateful=True))
 model.add(LSTM(32, stateful=True))
 model.add(Dense(num_classes, activation='softmax'))
 '''
-encoder_a = Input(shape=(None, vec_length))
-lstm_a = Bidirectional(LSTM(hidden_size, return_sequences=True))(encoder_a)
+alignment_batch = batch_size * batch_size - 2 * batch_size + 2
+encoder_a = Input(batch_shape=(alignment_batch, None,))
+layer_a = Embedding(V, 128)(encoder_a)
+layer_a = Bidirectional(LSTM(hidden_size, stateful=True))(layer_a)
 
-encoder_b = Input(shape=(None, vec_length))
-lstm_b = Bidirectional(LSTM(hidden_size, return_sequences=True))(encoder_b)
+encoder_b = Input(batch_shape=(alignment_batch, None,))
+layer_b = Embedding(V, 128)(encoder_b)
+layer_b = Bidirectional(LSTM(hidden_size, stateful=True))(layer_b)
 
-decoder = concatenate([lstm_a, lstm_b])
+decoder = dot([layer_a, layer_b], axes=1, normalize=True)
 
 #dense_1 = Dense(2048, activation='relu')(pool_2)
 #dense_2 = Dense(1024, activation='relu')(dense_1)
 dense_3 = Dense(512, activation='relu')(decoder)
-output = Dense(9, activation='softmax')(dense_3)
+output = Dense(1, activation='sigmoid')(dense_3)
 model = Model(inputs=[encoder_a, encoder_b], outputs=output)
 
 adam = Adam(lr=learning_rate)
@@ -397,10 +398,10 @@ history = model.fit_generator(generate_batch(x_train, y_train),
                               validation_steps=10,
                               verbose=1)
 '''
-history = model.fit_generator(generate_word2vec_batch(x_train, y_train),
+history = model.fit_generator(generate_batch(x_train, y_train, tokenizer),
                               steps_per_epoch=steps_per_epoch,
-                              epochs=32,#len(x_train)//batch_size//steps_per_epoch,
-                              validation_data=generate_word2vec_batch(x_valid, y_valid),
+                              epochs=16,#len(x_train)//batch_size//steps_per_epoch,
+                              validation_data=generate_batch(x_valid, y_valid, tokenizer),
                               validation_steps=steps_per_epoch)
 # Save the weights
 model.save_weights('model_weights.h5')
