@@ -24,7 +24,7 @@ from Bio import pairwise2
 
 
 # Network Parameters
-learning_rate = 0.001
+learning_rate = 0.01
 num_classes = 2
 num_features = 372
 word_length = 6
@@ -52,7 +52,7 @@ def get_alignments(x, y, seq_i, seq_j, batch_size):
     a = pairwise2.align.localxx(x[seq_i], x[seq_j], one_alignment_only=True)[0]
     align_x = np.array(list(a)[0:2])
     if np.array_equal(y[seq_i], y[seq_j]):
-        align_y = np.array([1])
+        align_y = np.array([y[seq_i]])
     else:
         align_y = np.array([0])
     for i in range(seq_i + 1, seq_i + batch_size):
@@ -60,7 +60,7 @@ def get_alignments(x, y, seq_i, seq_j, batch_size):
             a = pairwise2.align.localxx(x[i], x[j], one_alignment_only=True)[0]
             align_x = np.vstack((align_x, np.array(list(a)[0:2])))
             if np.array_equal(y[i], y[j]):
-                align_y = np.append(align_y, np.array([1]))
+                align_y = np.append(align_y, np.array([y[i]]))
             else:
                 align_y = np.append(align_y, np.array([0]))
     lens = [len(seq) for alignment in align_x for seq in alignment]
@@ -305,12 +305,13 @@ def generate_batch(x, y, tokenizer):
         s2 = np.array(tokenizer.texts_to_sequences(a2))
         s1 = np.reshape(s1, (a1.shape[0], -1))
         s2 = np.reshape(s2, (a2.shape[0], -1))
-        #align_y = np_utils.to_categorical(align_y, num_classes=2)
+        align_y = np_utils.to_categorical(align_y, num_classes=10)
         yield [s1, s2], align_y
 
 
 # load data
 dir = os.getcwd() + '/histone_data/'
+
 x1, y1 = dhrt.load_data_and_labels_pos(dir + 'pos/h3k4me1.pos', pos=1)
 x2, y2 = dhrt.load_data_and_labels_pos(dir + 'pos/h3k4me2.pos', pos=2)
 x3, y3 = dhrt.load_data_and_labels_pos(dir + 'pos/h3k4me3.pos', pos=3)
@@ -321,8 +322,12 @@ x7, y7 = dhrt.load_data_and_labels_pos(dir + 'pos/h3k79me3.pos', pos=7)
 x8, y8 = dhrt.load_data_and_labels_pos(dir + 'pos/h4.pos', pos=8)
 x9, y9 = dhrt.load_data_and_labels_pos(dir + 'pos/h4ac.pos', pos=9)
 
+
 x_rt = np.concatenate((x1,x2,x3,x4,x5,x6,x7,x8,x9))
 y_rt = np.concatenate((y1,y2,y3,y4,y5,y6,y7,y8,y9))
+
+
+#x_rt, y_rt = dhrt.load_data_and_labels('cami.pos', 'cami.neg')
 
 x_rt = np.array([replace_spaces(seq) for seq in x_rt])
 y_rt = np.array(list(y_rt))
@@ -345,62 +350,38 @@ V = len(tokenizer.word_index) + 1
 print('Num Words:', V)
 
 #alignments2vec(x_train, y_train, V, tokenizer) #uncomment to train word2vec representation
-'''
-model = Sequential()
-'''
-'''
-model.add(Conv1D(filters=64, kernel_size=word_length, input_shape=(None, word_length)))
-model.add(Activation('relu'))
-model.add(Conv1D(filters=64, kernel_size=3))
-model.add(Activation('relu'))
-model.add(MaxPooling1D(3))
-model.add(Conv1D(128, 3, activation='relu'))
-model.add(Conv1D(128, 3, activation='relu'))
-model.add(GlobalAveragePooling1D())
-model.add(Dropout(0.5))
-model.add(Dense(1))
-model.add(Activation('sigmoid'))
-'''
-'''
-model.add(LSTM(32, return_sequences=True, stateful=True, batch_input_shape=((batch_size * batch_size - 2 * batch_size + 2), None, word_length)))
-model.add(LSTM(32, return_sequences=True, stateful=True))
-model.add(LSTM(32, stateful=True))
-model.add(Dense(num_classes, activation='softmax'))
-'''
+
 alignment_batch = batch_size * batch_size - 2 * batch_size + 2
 encoder_a = Input(batch_shape=(alignment_batch, None,))
 layer_a = Embedding(V, 128)(encoder_a)
-layer_a = Bidirectional(LSTM(hidden_size, stateful=True))(layer_a)
+layer_a = Bidirectional(LSTM(hidden_size, stateful=True, return_sequences=True))(layer_a)
 
 encoder_b = Input(batch_shape=(alignment_batch, None,))
 layer_b = Embedding(V, 128)(encoder_b)
-layer_b = Bidirectional(LSTM(hidden_size, stateful=True))(layer_b)
+layer_b = Bidirectional(LSTM(hidden_size, stateful=True, return_sequences=True))(layer_b)
 
 decoder = dot([layer_a, layer_b], axes=1, normalize=True)
 
 #dense_1 = Dense(2048, activation='relu')(pool_2)
 #dense_2 = Dense(1024, activation='relu')(dense_1)
-dense_3 = Dense(512, activation='relu')(decoder)
-output = Dense(1, activation='sigmoid')(dense_3)
+conv_1 = Conv1D(128, word_length)(decoder)
+pool_1 = MaxPooling1D(5)(conv_1)
+drop = Dropout(0.5)(pool_1)
+global_pool = GlobalMaxPooling1D()(drop)
+dense_3 = Dense(512, activation='relu')(global_pool)
+output = Dense(10, activation='sigmoid')(dense_3)
 model = Model(inputs=[encoder_a, encoder_b], outputs=output)
 
 adam = Adam(lr=learning_rate)
 sgd = SGD(lr=learning_rate, nesterov=True, decay=1e-6, momentum=0.9)
-model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=adam, metrics=['accuracy'])
 print('Training shapes:', x_train.shape, y_train.shape)
 print('Valid shapes:', x_valid.shape, y_valid.shape)
 print(model.summary())
-'''
-history = model.fit_generator(generate_batch(x_train, y_train),
-                              steps_per_epoch=10,
-                              epochs=10,#len(x_train)//batch_size//10,
-                              validation_data=generate_batch(x_valid, y_valid),
-                              validation_steps=10,
-                              verbose=1)
-'''
+
 history = model.fit_generator(generate_batch(x_train, y_train, tokenizer),
                               steps_per_epoch=steps_per_epoch,
-                              epochs=16,#len(x_train)//batch_size//steps_per_epoch,
+                              epochs=1,#len(x_train)//batch_size//steps_per_epoch,
                               validation_data=generate_batch(x_valid, y_valid, tokenizer),
                               validation_steps=steps_per_epoch)
 # Save the weights

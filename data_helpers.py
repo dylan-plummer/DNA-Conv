@@ -25,7 +25,7 @@ def clean_str(string):
     return string.strip().lower()
 
 
-def load_data_and_labels(pos_file,neg_file, pos=1):
+def load_data_and_labels(pos_file,neg_file):
     """
     Loads MR polarity data from files, splits the data into words and generates labels.
     Returns split sentences and labels.
@@ -39,8 +39,8 @@ def load_data_and_labels(pos_file,neg_file, pos=1):
     x_text = positive_examples + negative_examples
     x_text = [clean_str(sent) for sent in x_text]
     # Generate labels
-    positive_labels = [pos for _ in positive_examples]
-    negative_labels = [pos for _ in negative_examples]
+    positive_labels = [1 for _ in positive_examples]
+    negative_labels = [0 for _ in negative_examples]
     y = np.concatenate([positive_labels, negative_labels], 0)
     return [x_text, y]
 
