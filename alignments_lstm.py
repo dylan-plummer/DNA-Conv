@@ -27,7 +27,7 @@ from Bio import pairwise2
 learning_rate = 0.01
 num_classes = 2
 num_features = 372
-word_length = 6
+word_length = 8
 vec_length = 4
 batch_size = 4
 nb_epoch = 16

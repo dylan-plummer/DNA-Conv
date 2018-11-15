@@ -12,13 +12,17 @@ from sklearn.model_selection import train_test_split
 from keras.models import model_from_json, Model
 
 
-word_length = 6
+word_length = 8
 vec_length = 4
 
 # load data
 dir = os.getcwd() + '/histone_data/'
 #x_rt, y_rt = dhrt.load_data_and_labels_pos(dir + 'pos/h3k4me1.pos', pos=1)
-x_rt, y_rt = dhrt.load_data_and_labels('cami.pos', 'cami.neg')
+x1, y1 = dhrt.load_data_and_labels_pos(dir + 'pos/h3.pos', pos=1)
+x2, y2 = dhrt.load_data_and_labels_pos(dir + 'pos/h4.pos', pos=2)
+
+x_rt = np.concatenate((x1, x2))
+y_rt = np.concatenate((y1, y2))
 
 def get_vocab(chars):
     vocab = {}
@@ -48,8 +52,8 @@ print('X:', x_shuffle)
 print('Y:', y_shuffle)
 print(pairwise2.align.globalxx(x_shuffle[0], x_shuffle[1], one_alignment_only=True)[0:2])
 
-x_train, x_valid, y_train, y_valid = train_test_split(x_shuffle,
-                                                      y_shuffle,
+x_train, x_valid, y_train, y_valid = train_test_split(x_rt,
+                                                      y_rt,
                                                       stratify=y_shuffle,
                                                       test_size=0.2)
 
@@ -84,8 +88,12 @@ def get_test_alignment(x, i, j, tokenizer):
     align_x = np.array(list(alignment)[0:2])
     s1 = align_x[0]
     s2 = align_x[1]
-    s1 = ' '.join([s1[i:i + word_length] for i in range(0, len(s1), word_length)]).replace('-','x')
-    s2 = ' '.join([s2[i:i + word_length] for i in range(0, len(s2), word_length)]).replace('-', 'x')
+    s1 = ' '.join([s1[i:i + word_length] for i in range(0, len(s1))]).replace('-','x')
+    s2 = ' '.join([s2[i:i + word_length] for i in range(0, len(s2))]).replace('-', 'x')
+    print(s1)
+    print(s2)
+    s1 = np.tile(s1, 10)
+    s2 = np.tile(s2, 10)
     s1 = np.array(tokenizer.texts_to_sequences(s1))
     s2 = np.array(tokenizer.texts_to_sequences(s2))
     print(s1)
@@ -105,10 +113,13 @@ for layer in layer_outputs:
 activation_model = Model(inputs=model.input, outputs=layer_outputs)
 activations = activation_model.predict(get_test_alignment(x_valid, 0, 1, tokenizer))
 #print(activations)
+prediction = activations[-1]
+print(prediction)
 activation_1 = activations[7]
-print(activation_1)
+#print(activation_1)
 for kernel in activation_1[0]:
-    words = np.reshape(kernel, (-1, vec_length))
+    words = np.reshape(kernel, (-1, word_length))
     print('Learned alignment motifs:')
-    for word in words:
-        print(w2v.similar_by_vector(word, topn=1)[0])
+    print(np.array(tokenizer.sequences_to_texts(np.round(words))))
+
+    #print(w2v.similar_by_vector(words[0], topn=1)[0])
